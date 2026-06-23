@@ -1,15 +1,10 @@
 {
-  "name": "taskflow-saas",
+  "name": "myapp",
   "version": "1.0.0",
-  "description": "Simple SaaS task management API for AWS deployment",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
-    "db:init": "node scripts/init-db.js"
+    "start": "node index.js"
   },
-  "keywords": ["saas", "nodejs", "aws", "express"],
-  "license": "MIT",
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.21.0",

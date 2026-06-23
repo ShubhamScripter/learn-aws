@@ -1,48 +1,74 @@
 require('dotenv').config();
 
 const express = require('express');
-const pool = require('./config/db');
-const apiRoutes = require('./routes/api');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT, 10) || 5432,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  ssl: process.env.DB_HOST?.includes('rds.amazonaws.com')
+    ? { rejectUnauthorized: false }
+    : false,
+});
+
 app.use(express.json());
 
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notes (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(200) NOT NULL,
+      body TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  console.log('Database connected and tables ready');
+}
+
 app.get('/', (req, res) => {
-  res.json({
-    name: 'TaskFlow SaaS',
-    status: 'running',
-    version: '1.0.0',
-    endpoints: {
-      health: 'GET /health',
-      users: 'GET/POST /api/users',
-      tasks: 'GET/POST /api/tasks',
-      userTasks: 'GET /api/users/:id/tasks',
-    },
-  });
+  res.json({ app: 'myapp', status: 'running' });
 });
 
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+    res.json({ status: 'ok', database: 'connected' });
   } catch (err) {
-    res.status(503).json({ status: 'error', database: 'disconnected', message: err.message });
+    res.status(503).json({ status: 'error', message: err.message });
   }
 });
 
-app.use('/api', apiRoutes);
-
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+app.get('/api/notes', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM notes ORDER BY created_at DESC');
+    res.json({ notes: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Internal server error' });
+app.post('/api/notes', async (req, res) => {
+  const { title, body } = req.body;
+  if (!title) return res.status(400).json({ error: 'title is required' });
+
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO notes (title, body) VALUES ($1, $2) RETURNING *',
+      [title, body || '']
+    );
+    res.status(201).json({ note: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`TaskFlow SaaS running on port ${PORT}`);
+  console.log(`myapp running on port ${PORT}`);
+  initDb().catch((err) => console.error('DB init failed:', err.message));
 });

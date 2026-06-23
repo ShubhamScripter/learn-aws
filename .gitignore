@@ -1,16 +1,9 @@
-# Dependencies
 node_modules/
+.env
 
-
-
-# Logs
 logs/
 *.log
-npm-debug.log*
 
-# OS
 .DS_Store
 Thumbs.db
-
-# PM2
 .pm2/
